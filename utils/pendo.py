@@ -15,10 +15,10 @@ _PENDO_INTEGRATION_KEY = "18d45cc7-9959-4253-b4e7-bca464558030"
 
 def inject_pendo(user=None, company=None) -> None:
     """Inject the Pendo agent snippet into the Streamlit page."""
-    import streamlit.components.v1 as components
+    import streamlit as st
     visitor_id = str(user["id"]) if user and "id" in user else "anonymous"
     account_id = str(company["id"]) if company and "id" in company else "unknown"
-    components.html(
+    st.html(
         f"""<script>
         (function(apiKey){{
             (function(p,e,n,d,o){{var v,w,x,y,z;o=p[d]=p[d]||{{}};o._q=o._q||[];
@@ -35,30 +35,25 @@ def inject_pendo(user=None, company=None) -> None:
                 account: {{ id: "{account_id}" }}
             }});
         }})("{_PENDO_INTEGRATION_KEY}");
-        </script>""",
-        height=0,
-        width=0,
+        </script>"""
     )
 
 
 def track_event(event_name: str, properties: Optional[dict] = None) -> None:
     """Inject a pendo.track() call via JavaScript in a Streamlit page."""
-    import streamlit.components.v1 as components
+    import streamlit as st
 
     props_json = json.dumps(properties or {})
-    components.html(
+    st.html(
         f"""<script>
         (function() {{
             try {{
-                var p = (window.parent && window.parent.pendo) || window.pendo;
-                if (p && typeof p.track === 'function') {{
-                    p.track("{event_name}", {props_json});
+                if (window.pendo && typeof window.pendo.track === 'function') {{
+                    window.pendo.track("{event_name}", {props_json});
                 }}
             }} catch(e) {{ }}
         }})();
-        </script>""",
-        height=0,
-        width=0,
+        </script>"""
     )
 
 

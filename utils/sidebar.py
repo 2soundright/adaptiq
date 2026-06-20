@@ -265,6 +265,7 @@ def render_admin_sidebar(user: Dict, on_admin_page: bool = False) -> None:
         ):
             st.session_state.user = None
             st.session_state.messages = []
+            st.session_state["pendo_clear_session"] = True
             st.switch_page("app.py")
 
 
@@ -295,4 +296,5 @@ def render_user_sidebar(user: Dict) -> None:
         ):
             st.session_state.user = None
             st.session_state.messages = []
+            st.session_state["pendo_clear_session"] = True
             st.switch_page("app.py")

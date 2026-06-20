@@ -170,6 +170,15 @@ def _auth_form() -> None:
                 else:
                     ok, user, msg = login(email, password, company_id)
                     if ok and user:
+                        pendo_track(
+                            "user_logged_in",
+                            visitor_id=user["id"],
+                            account_id=company_id,
+                            properties={
+                                "role": user.get("role", ""),
+                                "company_id": company_id,
+                            },
+                        )
                         st.session_state.user = user
                         track_event_server(
                             "user_logged_in",
@@ -222,6 +231,15 @@ def _auth_form() -> None:
                     if ok:
                         _, user, _ = login(reg_email, reg_password, company_id)
                         if user:
+                            pendo_track(
+                                "user_registered",
+                                visitor_id=user["id"],
+                                account_id=company_id,
+                                properties={
+                                    "role": reg_role,
+                                    "company_id": company_id,
+                                },
+                            )
                             st.session_state.user = user
                             track_event_server(
                                 "user_registered",
@@ -259,6 +277,8 @@ if not _db_ready:
     st.stop()
 
 if st.session_state.user is None:
+    from utils.pendo import inject_pendo
+    inject_pendo()
     _auth_form()
 else:
     st.switch_page("pages/chat.py")

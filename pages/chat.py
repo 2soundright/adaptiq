@@ -27,7 +27,8 @@ from utils.responsive import inject_responsive_css
 
 inject_responsive_css()
 
-from utils.db_init import get_connection, init_db
+from utils.db_init import get_connection, get_company, init_db
+from utils.pendo import inject_pendo
 from utils.db_lock import db_lock
 from pipeline.safety import check_safety
 from pipeline.lang_detect import detect_language
@@ -59,6 +60,24 @@ def _track_agent(event_type: str, metadata: dict) -> None:
         </script>""",
         height=0,
         width=0,
+    )
+
+# ── Pendo trackAgent ─────────────────────────────────────────────────────────
+
+_PENDO_AGENT_ID = "iefyxIiGJ9ZNP5E3oLQ5ouGeBTw"
+_PENDO_MODEL = os.getenv("GROQ_GENERATION_MODEL", "openai/gpt-oss-120b")
+
+
+def _track_agent(event_type: str, metadata: dict) -> None:
+    """Inject a pendo.trackAgent() call via JavaScript."""
+    metadata_json = json.dumps(metadata)
+    components.html(
+        f"""<script>
+        if (window.parent && window.parent.pendo && window.parent.pendo.trackAgent) {{
+            window.parent.pendo.trackAgent("{event_type}", {metadata_json});
+        }}
+        </script>""",
+        height=0,
     )
 
 
@@ -200,7 +219,8 @@ def _render_sources(sources: List[Dict]) -> None:
 
 
 def _render_feedback_buttons(
-    conv_id: int, user_id: int, chunk_ids: List[str], company_id: int, role: str
+    conv_id: int, user_id: int, chunk_ids: List[str], company_id: int, role: str,
+    pendo_msg_id: Optional[str] = None,
 ) -> None:
     """Render star rating + comment feedback form once per message."""
     if _already_rated(conv_id):
@@ -229,6 +249,15 @@ def _render_feedback_buttons(
 
         if submitted:
             score = 1 if stars >= 3 else -1
+
+            if pendo_msg_id:
+                _track_agent("user_reaction", {
+                    "agentId": _PENDO_AGENT_ID,
+                    "conversationId": st.session_state.get("pendo_conversation_id", ""),
+                    "messageId": pendo_msg_id,
+                    "content": "positive" if score == 1 else "negative",
+                })
+
             ok = save_feedback(
                 conv_id,
                 user_id,
@@ -322,6 +351,16 @@ def _run_pipeline(
     # Show sources below the response (rendered outside chat_message block for unified width layout)
     _render_sources(top_chunks)
 
+    # Track agent response
+    response_msg_id = str(uuid.uuid4())
+    _track_agent("agent_response", {
+        "agentId": _PENDO_AGENT_ID,
+        "conversationId": st.session_state.get("pendo_conversation_id", ""),
+        "messageId": response_msg_id,
+        "content": full_response,
+        "modelUsed": _PENDO_MODEL,
+    })
+
     # Persist conversation
     conv_id = _save_conversation(
         user_id=user["id"],
@@ -334,6 +373,21 @@ def _run_pipeline(
 
     chunk_ids = [c["id"] for c in top_chunks]
 
+    pendo_track(
+        "chat_query_completed",
+        visitor_id=user["id"],
+        account_id=company_id,
+        properties={
+            "language": lang,
+            "sources_count": len(top_chunks),
+            "chunks_retrieved": len(chunks),
+            "has_context_docs": bool(top_chunks),
+            "company_id": company_id,
+            "user_role": role,
+            "response_length": len(full_response),
+            "query_length": len(raw_query),
+        },
+    )
     # ── Pendo: track agent response ──────────────────────────────────────────
     _track_agent("agent_response", {
         "agentId": _PENDO_AGENT_ID,
@@ -345,7 +399,7 @@ def _run_pipeline(
 
     # 8. Feedback buttons (rendered outside chat_message block for unified width layout)
     if conv_id:
-        _render_feedback_buttons(conv_id, user["id"], chunk_ids, company_id, role)
+        _render_feedback_buttons(conv_id, user["id"], chunk_ids, company_id, role, response_msg_id)
 
     # Add to replay buffer (background learning)
     try:
@@ -362,6 +416,7 @@ def _run_pipeline(
             "sources": top_chunks,
             "conv_id": conv_id,
             "chunk_ids": chunk_ids,
+            "pendo_msg_id": response_msg_id,
         }
     )
 
@@ -388,6 +443,10 @@ def render() -> None:
     user: Dict = st.session_state.user
     company_id: int = st.session_state.get("company_id", 1)
     role: str = user.get("role", "user")
+
+    company_row = get_company(company_id)
+    company = dict(company_row) if company_row else None
+    inject_pendo(user=user, company=company)
 
     if role == "admin":
         from utils.sidebar import render_admin_sidebar
@@ -430,12 +489,21 @@ def render() -> None:
                 chunk_ids = msg.get("chunk_ids", [])
                 if conv_id:
                     _render_feedback_buttons(
-                        conv_id, user["id"], chunk_ids, company_id, role
+                        conv_id, user["id"], chunk_ids, company_id, role,
+                        msg.get("pendo_msg_id"),
                     )
 
     if raw_query := st.chat_input("Ask anything…"):
         # Clear the welcome screen immediately before showing any chat content
         welcome_placeholder.empty()
+
+        _track_agent("prompt", {
+            "agentId": _PENDO_AGENT_ID,
+            "conversationId": st.session_state.pendo_conversation_id,
+            "messageId": str(uuid.uuid4()),
+            "content": raw_query,
+        })
+
         st.session_state.messages.append({"role": "user", "content": raw_query})
         with st.chat_message("user"):
             st.markdown(raw_query)

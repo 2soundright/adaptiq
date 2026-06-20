@@ -17,6 +17,7 @@ from typing import Optional, Tuple
 from groq import Groq
 
 from pipeline.lang_detect import SupportedLang
+from utils.pendo_track import track as pendo_track
 
 _GROQ_SAFETY_MODEL = os.getenv("GROQ_SAFETY_MODEL", "openai/gpt-oss-safeguard-20b")
 

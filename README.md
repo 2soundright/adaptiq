@@ -1,5 +1,13 @@
 # AdaptIQ
 
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
+![Groq](https://img.shields.io/badge/Groq-F55036?style=flat&logo=groq&logoColor=white)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-874FFF?style=flat&logoColor=white)
+![HuggingFace](https://img.shields.io/badge/HuggingFace-FFD21E?style=flat&logo=huggingface&logoColor=black)
+![Deploy](https://img.shields.io/badge/deployed-live-brightgreen?style=flat)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat)
+
 **AdaptIQ** is a smart assistant that knows everything your company knows. Upload your documents, point it at your website, and from that moment on anyone on your team can ask questions in natural language and get real answers — explained in plain language, with references to exactly where the information came from.
 
 Screens every query for safety. Respects who can see what. Gets smarter the more it's used.

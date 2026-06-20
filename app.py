@@ -20,7 +20,7 @@ from utils.db_init import init_db
 from utils.auth import login, register
 from utils.responsive import inject_responsive_css
 from utils.sidebar import inject_hide_sidebar_css
-from utils.pendo import track_event_server, track_event_server as pendo_track
+from utils.pendo import track_event_server as pendo_track
 
 # ── page config (must be the first Streamlit call) ────────────────────────────
 st.set_page_config(
@@ -170,24 +170,15 @@ def _auth_form() -> None:
                 else:
                     ok, user, msg = login(email, password, company_id)
                     if ok and user:
+                        st.session_state.user = user
                         pendo_track(
                             "user_logged_in",
                             visitor_id=user["id"],
                             account_id=company_id,
                             properties={
-                                "role": user.get("role", ""),
-                                "company_id": company_id,
-                            },
-                        )
-                        st.session_state.user = user
-                        track_event_server(
-                            "user_logged_in",
-                            visitor_id=user.get("id"),
-                            account_id=company_id,
-                            properties={
                                 "role": user.get("role", "unknown"),
                                 "company_id": company_id,
-                                "user_id": user.get("id"),
+                                "user_id": user["id"],
                             },
                         )
                         st.switch_page("pages/chat.py")
@@ -231,6 +222,7 @@ def _auth_form() -> None:
                     if ok:
                         _, user, _ = login(reg_email, reg_password, company_id)
                         if user:
+                            st.session_state.user = user
                             pendo_track(
                                 "user_registered",
                                 visitor_id=user["id"],
@@ -238,16 +230,7 @@ def _auth_form() -> None:
                                 properties={
                                     "role": reg_role,
                                     "company_id": company_id,
-                                },
-                            )
-                            st.session_state.user = user
-                            track_event_server(
-                                "user_registered",
-                                visitor_id=user.get("id"),
-                                account_id=company_id,
-                                properties={
-                                    "role": reg_role,
-                                    "company_id": company_id,
+                                    "user_id": user["id"],
                                 },
                             )
                             st.switch_page("pages/chat.py")

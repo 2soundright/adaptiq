@@ -7,10 +7,13 @@ Pipeline order: safety → lang_detect → query_transform → embed →
 """
 
 import json
+import os
 import time
+import uuid
 from typing import Dict, Generator, List, Optional
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 st.set_page_config(
     page_title="AITU AI ",
@@ -35,6 +38,21 @@ from pipeline.reranker import rerank
 from pipeline.generator import generate
 from pipeline.feedback import save_feedback
 from continual_learning.replay_buffer import add_entry
+
+
+_PENDO_AGENT_ID = "9TpswaGdPqPPKdmH9Io37n6vL1Q"
+
+
+def _track_agent(event_type: str, metadata: dict) -> None:
+    """Inject a pendo.trackAgent() call via browser JavaScript."""
+    payload = json.dumps(metadata).replace("</", "<\\/")
+    components.html(
+        f"<script>"
+        f'try {{ window.parent.pendo.trackAgent("{event_type}", {payload}); }} catch(e) {{}}'
+        f"</script>",
+        height=0,
+        width=0,
+    )
 
 
 # ── auth guard ────────────────────────────────────────────────────────────────
@@ -215,6 +233,12 @@ def _render_feedback_buttons(
                 comment=comment or None,
             )
             if ok:
+                _track_agent("user_reaction", {
+                    "agentId": _PENDO_AGENT_ID,
+                    "conversationId": st.session_state.pendo_conversation_id,
+                    "messageId": f"agent_response_{conv_id}",
+                    "content": "positive" if stars >= 3 else "negative",
+                })
                 _mark_rated(conv_id)
                 st.rerun()
 
@@ -241,6 +265,12 @@ def _run_pipeline(
         with st.chat_message("assistant"):
             st.markdown(safety_msg)
         st.session_state.messages.append({"role": "assistant", "content": safety_msg})
+        _track_agent("agent_response", {
+            "agentId": _PENDO_AGENT_ID,
+            "conversationId": st.session_state.pendo_conversation_id,
+            "messageId": f"agent_response_{int(time.time() * 1000)}",
+            "content": safety_msg,
+        })
         return
 
     # 2. Language detection
@@ -312,6 +342,14 @@ def _run_pipeline(
         }
     )
 
+    _track_agent("agent_response", {
+        "agentId": _PENDO_AGENT_ID,
+        "conversationId": st.session_state.pendo_conversation_id,
+        "messageId": f"agent_response_{conv_id or int(time.time() * 1000)}",
+        "content": full_response,
+        "modelUsed": os.getenv("GROQ_GENERATION_MODEL", "openai/gpt-oss-120b"),
+    })
+
 
 # ── page render ───────────────────────────────────────────────────────────────
 
@@ -335,6 +373,8 @@ def render() -> None:
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "pendo_conversation_id" not in st.session_state:
+        st.session_state.pendo_conversation_id = str(uuid.uuid4())
 
     # ── Welcome screen: use a placeholder so it clears immediately ───────────
     # The placeholder is emptied before rendering the user's first message,
@@ -371,6 +411,13 @@ def render() -> None:
         st.session_state.messages.append({"role": "user", "content": raw_query})
         with st.chat_message("user"):
             st.markdown(raw_query)
+        _track_agent("prompt", {
+            "agentId": _PENDO_AGENT_ID,
+            "conversationId": st.session_state.pendo_conversation_id,
+            "messageId": f"prompt_{int(time.time() * 1000)}",
+            "content": raw_query,
+            "suggestedPrompt": False,
+        })
         _run_pipeline(raw_query, user, company_id, role)
 
 

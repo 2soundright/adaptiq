@@ -224,6 +224,7 @@ def _render_feedback_buttons(
             submitted = st.form_submit_button("Submit feedback")
 
             if submitted:
+                print(f"[feedback] submitted conv_id={conv_id} stars={stars} comment={comment!r}")
                 score = 1 if stars >= 3 else -1
 
                 if pendo_msg_id:

@@ -203,26 +203,28 @@ def _render_feedback_buttons(
         st.caption("✅ Feedback recorded")
         return
 
-    stars_key = f"stars_{conv_id}"
-    comment_key = f"comment_{conv_id}"
-
-    print(f"[feedback] rendering form for conv_id={conv_id}")
     with st.expander("⭐ Rate this response"):
-        stars = st.radio(
-            "Your rating:",
-            options=[1, 2, 3, 4, 5],
-            index=2,
-            format_func=lambda x: "⭐" * x,
-            horizontal=True,
-            key=stars_key,
-        )
-        comment = st.text_input(
-            "Comment (optional)",
-            placeholder="Share your thoughts…",
-            key=comment_key,
-        )
-        if st.button("Submit feedback", key=f"submit_{conv_id}"):
-            print(f"[feedback] submitted conv_id={conv_id} stars={stars} comment={comment!r}")
+        with st.form(key=f"feedback_form_{conv_id}", clear_on_submit=True):
+            st.markdown(
+                "<p style='margin:0 0 4px 0; font-size:0.85em; color:#666;'>Your rating:</p>",
+                unsafe_allow_html=True,
+            )
+            stars = st.radio(
+                "Your rating:",
+                options=[1, 2, 3, 4, 5],
+                index=2,
+                format_func=lambda x: "⭐" * x,
+                horizontal=True,
+                label_visibility="collapsed",
+            )
+            comment = st.text_input(
+                "Comment (optional)",
+                placeholder="Share your thoughts…",
+            )
+            submitted = st.form_submit_button("Submit feedback")
+
+        if submitted:
+            print(f"[feedback] submitted conv_id={conv_id} stars={stars}")
             score = 1 if stars >= 3 else -1
             ok = save_feedback(
                 conv_id,
@@ -238,11 +240,8 @@ def _render_feedback_buttons(
                 track_event("feedback_submitted", {
                     "star_rating": stars,
                     "score": score,
-                    "has_comment": bool(comment),
                     "conversation_id": conv_id,
-                    "chunk_count": len(chunk_ids),
                     "role": role,
-                    "company_id": company_id,
                 })
                 _mark_rated(conv_id)
                 st.rerun()

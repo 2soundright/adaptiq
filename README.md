@@ -8,9 +8,9 @@
 ![Deploy](https://img.shields.io/badge/deployed-live-brightgreen?style=flat)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat)
 
-**AdaptIQ** is a smart assistant that knows everything your company knows. Upload your documents, point it at your website, and from that moment on anyone on your team can ask questions in natural language and get real answers — explained in plain language, with references to exactly where the information came from.
+**AdaptIQ** is an AI assistant with automatic feedback collection, validation, and continual learning. Ask it anything — it answers from your company's documents and website, in plain language, with references to exactly where the information came from. Every response can be rated, that feedback is automatically validated and used to continuously improve retrieval quality.
 
-Screens every query for safety. Respects who can see what. Gets smarter the more it's used.
+Screens every query for safety. Respects who can see what. Gets smarter with every conversation.
 
 ---
 

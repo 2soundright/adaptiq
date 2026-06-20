@@ -206,6 +206,7 @@ def _render_feedback_buttons(
     stars_key = f"stars_{conv_id}"
     comment_key = f"comment_{conv_id}"
 
+    print(f"[feedback] rendering form for conv_id={conv_id}")
     with st.expander("⭐ Rate this response"):
         stars = st.radio(
             "Your rating:",

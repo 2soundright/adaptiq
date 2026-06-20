@@ -7,10 +7,13 @@ Pipeline order: safety → lang_detect → query_transform → embed →
 """
 
 import json
+import os
 import time
+import uuid
 from typing import Dict, Generator, List, Optional
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 st.set_page_config(
     page_title="AdaptIQ",
@@ -35,6 +38,27 @@ from pipeline.reranker import rerank
 from pipeline.generator import generate
 from pipeline.feedback import save_feedback
 from continual_learning.replay_buffer import add_entry
+
+_PENDO_AGENT_ID = "dkfl5wr5cqvWxbAax-uPxZhUP6U"
+
+
+def _track_agent(event_type: str, metadata: dict) -> None:
+    """Fire a pendo.trackAgent() call via injected JavaScript."""
+    metadata_json = json.dumps(metadata)
+    components.html(
+        f"""<script>
+        (function() {{
+            try {{
+                var p = (window.parent && window.parent.pendo) || window.pendo;
+                if (p && typeof p.trackAgent === 'function') {{
+                    p.trackAgent("{event_type}", {metadata_json});
+                }}
+            }} catch(e) {{ }}
+        }})();
+        </script>""",
+        height=0,
+        width=0,
+    )
 
 
 # ── auth guard ────────────────────────────────────────────────────────────────
@@ -215,6 +239,15 @@ def _render_feedback_buttons(
                 comment=comment or None,
             )
             if ok:
+                # ── Pendo: track user reaction ───────────────────────────────
+                _track_agent("user_reaction", {
+                    "agentId": _PENDO_AGENT_ID,
+                    "conversationId": st.session_state.get(
+                        "pendo_conversation_id", ""
+                    ),
+                    "messageId": f"agent_response_{conv_id}",
+                    "content": "positive" if stars >= 3 else "negative",
+                })
                 _mark_rated(conv_id)
                 st.rerun()
 
@@ -290,6 +323,15 @@ def _run_pipeline(
 
     chunk_ids = [c["id"] for c in top_chunks]
 
+    # ── Pendo: track agent response ──────────────────────────────────────────
+    _track_agent("agent_response", {
+        "agentId": _PENDO_AGENT_ID,
+        "conversationId": st.session_state.pendo_conversation_id,
+        "messageId": f"agent_response_{conv_id or int(time.time() * 1000)}",
+        "content": full_response,
+        "modelUsed": os.getenv("GROQ_GENERATION_MODEL", "openai/gpt-oss-120b"),
+    })
+
     # 8. Feedback buttons (rendered outside chat_message block for unified width layout)
     if conv_id:
         _render_feedback_buttons(conv_id, user["id"], chunk_ids, company_id, role)
@@ -336,6 +378,9 @@ def render() -> None:
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
+    if "pendo_conversation_id" not in st.session_state:
+        st.session_state.pendo_conversation_id = str(uuid.uuid4())
+
     # ── Welcome screen: use a placeholder so it clears immediately ───────────
     # The placeholder is emptied before rendering the user's first message,
     # ensuring the welcome text never coexists with chat content.
@@ -371,6 +416,15 @@ def render() -> None:
         st.session_state.messages.append({"role": "user", "content": raw_query})
         with st.chat_message("user"):
             st.markdown(raw_query)
+
+        # ── Pendo: track user prompt ─────────────────────────────────────────
+        _track_agent("prompt", {
+            "agentId": _PENDO_AGENT_ID,
+            "conversationId": st.session_state.pendo_conversation_id,
+            "messageId": f"prompt_{int(time.time() * 1000)}",
+            "content": raw_query,
+        })
+
         _run_pipeline(raw_query, user, company_id, role)
 
 

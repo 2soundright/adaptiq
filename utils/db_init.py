@@ -89,6 +89,8 @@ def init_db() -> None:
                 conversation_id INTEGER NOT NULL,
                 user_id         INTEGER NOT NULL,
                 score           INTEGER NOT NULL CHECK(score IN (1,-1)),
+                star_rating     INTEGER,
+                comment         TEXT,
                 analysis        TEXT,
                 created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (conversation_id) REFERENCES conversations(id),
@@ -128,6 +130,13 @@ def init_db() -> None:
                 created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+
+        # ── Migrations ───────────────────────────────────────────────────────
+        for col, definition in [("star_rating", "INTEGER"), ("comment", "TEXT")]:
+            try:
+                cursor.execute(f"ALTER TABLE feedback ADD COLUMN {col} {definition}")
+            except Exception:
+                pass
 
         # ── Seed default company ──────────────────────────────────────────────
         company_id   = int(os.getenv("DEFAULT_COMPANY_ID",   "1"))

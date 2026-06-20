@@ -131,14 +131,6 @@ def init_db() -> None:
             );
         """)
 
-        # ── Migrations ───────────────────────────────────────────────────────
-        for col, definition in [("star_rating", "INTEGER"), ("comment", "TEXT")]:
-            try:
-                conn.execute(f"ALTER TABLE feedback ADD COLUMN {col} {definition}")
-                conn.commit()
-            except Exception:
-                pass
-
         # ── Seed default company ──────────────────────────────────────────────
         company_id   = int(os.getenv("DEFAULT_COMPANY_ID",   "1"))
         company_name = os.getenv("DEFAULT_COMPANY_NAME",     "AI Assistant")
@@ -180,6 +172,17 @@ def init_db() -> None:
 
         conn.commit()
         conn.close()
+
+    # ── Migrations (outside db_lock to avoid re-entrant lock issues) ─────────
+    conn = get_connection()
+    for col, definition in [("star_rating", "INTEGER"), ("comment", "TEXT")]:
+        try:
+            conn.execute(f"ALTER TABLE feedback ADD COLUMN {col} {definition}")
+            conn.commit()
+            print(f"[db] migration: added feedback.{col}")
+        except Exception:
+            pass
+    conn.close()
 
 
 def get_company(company_id: int) -> Optional[sqlite3.Row]:

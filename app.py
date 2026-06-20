@@ -157,32 +157,31 @@ def _auth_form() -> None:
             st.session_state.auth_mode = "login"
 
         if st.session_state.auth_mode == "login":
-            submitted = False
             with st.form("login_form"):
                 email = st.text_input("Email", placeholder="you@example.com")
                 password = st.text_input("Password", type="password")
                 submitted = st.form_submit_button("Log in", use_container_width=True)
 
-            if submitted:
-                if not email or not password:
-                    st.error("Please fill in all fields.")
-                else:
-                    ok, user, msg = login(email, password, company_id)
-                    if ok and user:
-                        st.session_state.user = user
-                        pendo_track(
-                            "user_logged_in",
-                            visitor_id=user["id"],
-                            account_id=company_id,
-                            properties={
-                                "role": user.get("role", "unknown"),
-                                "company_id": company_id,
-                                "user_id": user["id"],
-                            },
-                        )
-                        st.switch_page("pages/chat.py")
+                if submitted:
+                    if not email or not password:
+                        st.error("Please fill in all fields.")
                     else:
-                        st.error(msg)
+                        ok, user, msg = login(email, password, company_id)
+                        if ok and user:
+                            st.session_state.user = user
+                            pendo_track(
+                                "user_logged_in",
+                                visitor_id=user["id"],
+                                account_id=company_id,
+                                properties={
+                                    "role": user.get("role", "unknown"),
+                                    "company_id": company_id,
+                                    "user_id": user["id"],
+                                },
+                            )
+                            st.switch_page("pages/chat.py")
+                        else:
+                            st.error(msg)
 
             _t, _b = st.columns([1.4, 0.9])
             with _t:
@@ -212,33 +211,33 @@ def _auth_form() -> None:
                     "Create account", use_container_width=True
                 )
 
-            if reg_submit:
-                if not reg_email or not reg_password:
-                    st.session_state.reg_error = "Please fill in all fields."
-                    st.rerun()
-                else:
-                    ok, msg = register(reg_email, reg_password, company_id, reg_role)
-                    if ok:
-                        _, user, _ = login(reg_email, reg_password, company_id)
-                        if user:
-                            st.session_state.user = user
-                            pendo_track(
-                                "user_registered",
-                                visitor_id=user["id"],
-                                account_id=company_id,
-                                properties={
-                                    "role": reg_role,
-                                    "company_id": company_id,
-                                    "user_id": user["id"],
-                                },
-                            )
-                            st.switch_page("pages/chat.py")
-                        else:
-                            st.session_state.reg_error = msg + " You can now log in."
-                            st.rerun()
-                    else:
-                        st.session_state.reg_error = msg
+                if reg_submit:
+                    if not reg_email or not reg_password:
+                        st.session_state.reg_error = "Please fill in all fields."
                         st.rerun()
+                    else:
+                        ok, msg = register(reg_email, reg_password, company_id, reg_role)
+                        if ok:
+                            _, user, _ = login(reg_email, reg_password, company_id)
+                            if user:
+                                st.session_state.user = user
+                                pendo_track(
+                                    "user_registered",
+                                    visitor_id=user["id"],
+                                    account_id=company_id,
+                                    properties={
+                                        "role": reg_role,
+                                        "company_id": company_id,
+                                        "user_id": user["id"],
+                                    },
+                                )
+                                st.switch_page("pages/chat.py")
+                            else:
+                                st.session_state.reg_error = msg + " You can now log in."
+                                st.rerun()
+                        else:
+                            st.session_state.reg_error = msg
+                            st.rerun()
 
             _t2, _b2 = st.columns([1.5, 0.6])
             with _t2:

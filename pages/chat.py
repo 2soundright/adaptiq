@@ -223,49 +223,45 @@ def _render_feedback_buttons(
             )
             submitted = st.form_submit_button("Submit feedback")
 
-        if submitted:
-            score = 1 if stars >= 3 else -1
+            if submitted:
+                score = 1 if stars >= 3 else -1
 
-            if pendo_msg_id:
-                _track_agent("user_reaction", {
-                    "agentId": _PENDO_AGENT_ID,
-                    "conversationId": st.session_state.get("pendo_conversation_id", ""),
-                    "messageId": pendo_msg_id,
-                    "content": "positive" if score == 1 else "negative",
-                })
+                if pendo_msg_id:
+                    _track_agent("user_reaction", {
+                        "agentId": _PENDO_AGENT_ID,
+                        "conversationId": st.session_state.get("pendo_conversation_id", ""),
+                        "messageId": pendo_msg_id,
+                        "content": "positive" if score == 1 else "negative",
+                    })
 
-            ok = save_feedback(
-                conv_id,
-                user_id,
-                score,
-                chunk_ids,
-                company_id,
-                role,
-                star_rating=stars,
-                comment=comment or None,
-            )
-            if ok:
-                # ── Pendo: track feedback submission ─────────────────────────
-                track_event("feedback_submitted", {
-                    "star_rating": stars,
-                    "score": score,
-                    "has_comment": bool(comment),
-                    "conversation_id": conv_id,
-                    "chunk_count": len(chunk_ids),
-                    "role": role,
-                    "company_id": company_id,
-                })
-                # ── Pendo: track user reaction ───────────────────────────────
-                _track_agent("user_reaction", {
-                    "agentId": _PENDO_AGENT_ID,
-                    "conversationId": st.session_state.get(
-                        "pendo_conversation_id", ""
-                    ),
-                    "messageId": f"agent_response_{conv_id}",
-                    "content": "positive" if stars >= 3 else "negative",
-                })
-                _mark_rated(conv_id)
-                st.rerun()
+                ok = save_feedback(
+                    conv_id,
+                    user_id,
+                    score,
+                    chunk_ids,
+                    company_id,
+                    role,
+                    star_rating=stars,
+                    comment=comment or None,
+                )
+                if ok:
+                    track_event("feedback_submitted", {
+                        "star_rating": stars,
+                        "score": score,
+                        "has_comment": bool(comment),
+                        "conversation_id": conv_id,
+                        "chunk_count": len(chunk_ids),
+                        "role": role,
+                        "company_id": company_id,
+                    })
+                    _track_agent("user_reaction", {
+                        "agentId": _PENDO_AGENT_ID,
+                        "conversationId": st.session_state.get("pendo_conversation_id", ""),
+                        "messageId": f"agent_response_{conv_id}",
+                        "content": "positive" if stars >= 3 else "negative",
+                    })
+                    _mark_rated(conv_id)
+                    st.rerun()
 
 
 # ── main pipeline call ────────────────────────────────────────────────────────

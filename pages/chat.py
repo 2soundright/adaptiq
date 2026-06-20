@@ -28,7 +28,7 @@ from utils.responsive import inject_responsive_css
 inject_responsive_css()
 
 from utils.db_init import get_connection, get_company, init_db
-from utils.pendo import inject_pendo
+from utils.pendo import inject_pendo, track_event_server as pendo_track
 from utils.db_lock import db_lock
 from pipeline.safety import check_safety
 from pipeline.lang_detect import detect_language

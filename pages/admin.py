@@ -33,7 +33,7 @@ from utils.responsive import inject_responsive_css
 inject_responsive_css()
 
 from utils.db_init import get_connection, get_company
-from utils.pendo import inject_pendo
+from utils.pendo import inject_pendo, track_event_server as pendo_track
 from utils.db_lock import db_lock
 from utils.encryption import decrypt
 from pipeline.embeddings import embed_texts

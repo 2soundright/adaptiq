@@ -134,7 +134,8 @@ def init_db() -> None:
         # ── Migrations ───────────────────────────────────────────────────────
         for col, definition in [("star_rating", "INTEGER"), ("comment", "TEXT")]:
             try:
-                cursor.execute(f"ALTER TABLE feedback ADD COLUMN {col} {definition}")
+                conn.execute(f"ALTER TABLE feedback ADD COLUMN {col} {definition}")
+                conn.commit()
             except Exception:
                 pass
 

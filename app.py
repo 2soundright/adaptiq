@@ -38,7 +38,6 @@ inject_responsive_css()
 def _init() -> bool:
     """Run once per process – initialise SQLite and seed defaults."""
     try:
-        os.makedirs("./data", exist_ok=True)
         init_db()
         return True
     except Exception as exc:

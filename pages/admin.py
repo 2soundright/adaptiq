@@ -40,6 +40,7 @@ from pipeline.retriever import add_chunks, get_or_create_collection
 from continual_learning.drift_detector import drift_summary
 from continual_learning.ewc import calculate_plasticity
 from scraper.updater import run_update
+from utils.pendo import track_event
 
 
 # ── auth guard ────────────────────────────────────────────────────────────────
@@ -342,6 +343,22 @@ def _tab_documents(company_id: int, user_id: int) -> None:
                     file_bytes, f.name, ext, visibility, company_id, user_id
                 )
             if ok:
+                chunk_count = 0
+                try:
+                    chunk_count = int(msg.split()[1])
+                except (IndexError, ValueError):
+                    pass
+                track_event("document_uploaded", {
+                    "filename": f.name,
+                    "file_type": ext,
+                    "file_size_bytes": len(file_bytes),
+                    "visibility": visibility,
+                    "chunk_count": chunk_count,
+                    "success": True,
+                    "company_id": company_id,
+                    "batch_size": len(uploaded),
+                    "batch_index": i,
+                })
                 st.success(msg)
             else:
                 st.error(f"'{f.name}': {msg}")
@@ -518,6 +535,15 @@ def _tab_scraper(company_id: int) -> None:
             with st.spinner("Crawling https://www.pendo.io …"):
                 try:
                     summary = run_update(company_id=company_id, max_pages=max_pages)
+                    track_event("scraper_run_completed", {
+                        "pages_added": summary["added"],
+                        "pages_updated": summary["updated"],
+                        "pages_removed": summary["removed"],
+                        "pages_unchanged": summary["unchanged"],
+                        "errors": summary["errors"],
+                        "max_pages": max_pages,
+                        "company_id": company_id,
+                    })
                     st.success(
                         f"Done — added: {summary['added']} · "
                         f"updated: {summary['updated']} · "

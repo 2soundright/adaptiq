@@ -258,6 +258,8 @@ if not _db_ready:
     st.stop()
 
 if st.session_state.user is None:
+    from utils.pendo import inject_pendo
+    inject_pendo()
     _auth_form()
 else:
     st.switch_page("pages/chat.py")

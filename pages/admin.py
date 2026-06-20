@@ -32,7 +32,8 @@ from utils.responsive import inject_responsive_css
 
 inject_responsive_css()
 
-from utils.db_init import get_connection
+from utils.db_init import get_connection, get_company
+from utils.pendo import inject_pendo
 from utils.db_lock import db_lock
 from utils.encryption import decrypt
 from pipeline.embeddings import embed_texts
@@ -667,6 +668,10 @@ def render() -> None:
 
     user: Dict = st.session_state.user
     company_id: int = st.session_state.get("company_id", 1)
+
+    company_row = get_company(company_id)
+    company = dict(company_row) if company_row else None
+    inject_pendo(user=user, company=company)
 
     from utils.sidebar import render_admin_sidebar
 

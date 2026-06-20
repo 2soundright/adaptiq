@@ -10,7 +10,7 @@ import time
 from typing import Optional
 
 _PENDO_TRACK_URL = "https://data.pendo.io/data/track"
-_PENDO_INTEGRATION_KEY = "18d45cc7-9959-4253-b4e7-bca464558030"
+_PENDO_INTEGRATION_KEY = "86fbcd68-8315-4a3f-9229-01b19087de97"
 
 
 def inject_pendo(user=None, company=None) -> None:

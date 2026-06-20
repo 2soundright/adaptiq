@@ -9,10 +9,15 @@ import json
 import time
 from typing import Optional
 
+_PENDO_TRACK_URL = "https://data.pendo.io/data/track"
+_PENDO_INTEGRATION_KEY = "4e308391-5688-48ad-b1a2-f121c7565c18"
 
-def inject_pendo() -> None:
+
+def inject_pendo(user=None, company=None) -> None:
     """Inject the Pendo agent snippet into the Streamlit page."""
     import streamlit.components.v1 as components
+    visitor_id = str(user["id"]) if user and "id" in user else "anonymous"
+    account_id = str(company["id"]) if company and "id" in company else "unknown"
     components.html(
         f"""<script>
         (function(apiKey){{
@@ -51,10 +56,6 @@ def track_event(event_name: str, properties: Optional[dict] = None) -> None:
         height=0,
         width=0,
     )
-
-
-_PENDO_TRACK_URL = "https://data.pendo.io/data/track"
-_PENDO_INTEGRATION_KEY = "4e308391-5688-48ad-b1a2-f121c7565c18"
 
 
 def track_event_server(

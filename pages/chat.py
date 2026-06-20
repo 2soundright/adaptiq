@@ -326,6 +326,7 @@ def _run_pipeline(
         lang=lang,
         sources=top_chunks,
     )
+    print(f"[chat] conv_id after save: {conv_id}")
 
     chunk_ids = [c["id"] for c in top_chunks]
 

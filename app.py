@@ -20,7 +20,7 @@ from utils.db_init import init_db
 from utils.auth import login, register
 from utils.responsive import inject_responsive_css
 from utils.sidebar import inject_hide_sidebar_css
-from utils.pendo import track_event_server
+from utils.pendo import track_event_server, track_event_server as pendo_track
 
 # ── page config (must be the first Streamlit call) ────────────────────────────
 st.set_page_config(

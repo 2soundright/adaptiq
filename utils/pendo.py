@@ -80,7 +80,7 @@ def track_event_server(
         "properties": properties or {},
     }
     try:
-        httpx.post(
+        resp = httpx.post(
             _PENDO_TRACK_URL,
             json=payload,
             headers={
@@ -89,5 +89,6 @@ def track_event_server(
             },
             timeout=5.0,
         )
+        print(f"[pendo] track '{event_name}' → {resp.status_code} {resp.text[:200]}")
     except Exception as exc:
         print(f"[pendo] Failed to send track event '{event_name}': {exc}")

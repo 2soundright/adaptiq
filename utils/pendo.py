@@ -10,6 +10,28 @@ import time
 from typing import Optional
 
 
+def inject_pendo() -> None:
+    """Inject the Pendo agent snippet into the Streamlit page."""
+    import streamlit.components.v1 as components
+    components.html(
+        f"""<script>
+        (function(apiKey){{
+            (function(p,e,n,d,o){{var v,w,x,y,z;o=p[d]=p[d]||{{}};o._q=o._q||[];
+            v=['initialize','identify','updateOptions','pageLoad','track'];
+            for(w=0,x=v.length;w<x;++w)(function(m){{
+                o[m]=o[m]||function(){{o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));}}
+            }})(v[w]);
+            y=e.createElement(n);y.async=!0;
+            y.src='https://cdn.pendo.io/agent/static/'+apiKey+'/pendo.js';
+            z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);
+            }})(window,document,'script','pendo');
+        }})("{_PENDO_INTEGRATION_KEY}");
+        </script>""",
+        height=0,
+        width=0,
+    )
+
+
 def track_event(event_name: str, properties: Optional[dict] = None) -> None:
     """Inject a pendo.track() call via JavaScript in a Streamlit page."""
     import streamlit.components.v1 as components

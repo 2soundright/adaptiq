@@ -13,7 +13,6 @@ import uuid
 from typing import Dict, Generator, List, Optional
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 st.set_page_config(
     page_title="AdaptIQ",
@@ -41,29 +40,6 @@ from pipeline.feedback import save_feedback
 from continual_learning.replay_buffer import add_entry
 from utils.pendo import track_event
 
-_PENDO_AGENT_ID = "dkfl5wr5cqvWxbAax-uPxZhUP6U"
-
-
-def _track_agent(event_type: str, metadata: dict) -> None:
-    """Fire a pendo.trackAgent() call via injected JavaScript."""
-    metadata_json = json.dumps(metadata)
-    components.html(
-        f"""<script>
-        (function() {{
-            try {{
-                var p = (window.parent && window.parent.pendo) || window.pendo;
-                if (p && typeof p.trackAgent === 'function') {{
-                    p.trackAgent("{event_type}", {metadata_json});
-                }}
-            }} catch(e) {{ }}
-        }})();
-        </script>""",
-        height=0,
-        width=0,
-    )
-
-# ── Pendo trackAgent ─────────────────────────────────────────────────────────
-
 _PENDO_AGENT_ID = "iefyxIiGJ9ZNP5E3oLQ5ouGeBTw"
 _PENDO_MODEL = os.getenv("GROQ_GENERATION_MODEL", "openai/gpt-oss-120b")
 
@@ -71,13 +47,12 @@ _PENDO_MODEL = os.getenv("GROQ_GENERATION_MODEL", "openai/gpt-oss-120b")
 def _track_agent(event_type: str, metadata: dict) -> None:
     """Inject a pendo.trackAgent() call via JavaScript."""
     metadata_json = json.dumps(metadata)
-    components.html(
+    st.html(
         f"""<script>
-        if (window.parent && window.parent.pendo && window.parent.pendo.trackAgent) {{
-            window.parent.pendo.trackAgent("{event_type}", {metadata_json});
+        if (window.pendo && typeof window.pendo.trackAgent === 'function') {{
+            window.pendo.trackAgent("{event_type}", {metadata_json});
         }}
-        </script>""",
-        height=0,
+        </script>"""
     )
 
 

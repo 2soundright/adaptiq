@@ -40,6 +40,7 @@ from pipeline.retriever import add_chunks, get_or_create_collection
 from continual_learning.drift_detector import drift_summary
 from continual_learning.ewc import calculate_plasticity
 from scraper.updater import run_update
+from utils.pendo_track import track as pendo_track
 
 
 # ── auth guard ────────────────────────────────────────────────────────────────
@@ -331,10 +332,27 @@ def _tab_documents(company_id: int, user_id: int) -> None:
 
     if st.button("📥 Ingest selected files", disabled=not uploaded):
         progress = st.progress(0)
+        successful_count = 0
+        failed_count = 0
         for i, f in enumerate(uploaded):
             file_bytes = f.read()
-            if len(file_bytes) > 50 * 1024 * 1024:
+            file_size = len(file_bytes)
+            if file_size > 50 * 1024 * 1024:
                 st.error(f"'{f.name}' exceeds 50 MB limit – skipped.")
+                failed_count += 1
+                pendo_track(
+                    "document_ingestion_failed",
+                    visitor_id=user_id,
+                    account_id=company_id,
+                    properties={
+                        "filename": f.name,
+                        "file_type": f.name.rsplit(".", 1)[-1].lower(),
+                        "file_size": file_size,
+                        "visibility": visibility,
+                        "error_reason": "exceeds_50mb_limit",
+                        "company_id": company_id,
+                    },
+                )
                 continue
             ext = f.name.rsplit(".", 1)[-1].lower()
             with st.spinner(f"Processing '{f.name}' …"):
@@ -342,10 +360,50 @@ def _tab_documents(company_id: int, user_id: int) -> None:
                     file_bytes, f.name, ext, visibility, company_id, user_id
                 )
             if ok:
+                successful_count += 1
                 st.success(msg)
+                pendo_track(
+                    "document_ingested",
+                    visitor_id=user_id,
+                    account_id=company_id,
+                    properties={
+                        "filename": f.name,
+                        "file_type": ext,
+                        "file_size": file_size,
+                        "visibility": visibility,
+                        "chunk_count": int(msg.split()[1]) if msg.split()[1].isdigit() else 0,
+                        "company_id": company_id,
+                    },
+                )
             else:
+                failed_count += 1
                 st.error(f"'{f.name}': {msg}")
+                pendo_track(
+                    "document_ingestion_failed",
+                    visitor_id=user_id,
+                    account_id=company_id,
+                    properties={
+                        "filename": f.name,
+                        "file_type": ext,
+                        "file_size": file_size,
+                        "visibility": visibility,
+                        "error_reason": msg[:200],
+                        "company_id": company_id,
+                    },
+                )
             progress.progress((i + 1) / len(uploaded))
+        pendo_track(
+            "bulk_document_ingestion_completed",
+            visitor_id=user_id,
+            account_id=company_id,
+            properties={
+                "total_files": len(uploaded),
+                "successful_count": successful_count,
+                "failed_count": failed_count,
+                "visibility": visibility,
+                "company_id": company_id,
+            },
+        )
 
     st.divider()
     st.subheader("📚 Indexed Documents")
@@ -515,9 +573,24 @@ def _tab_scraper(company_id: int) -> None:
     with col2:
         st.markdown("<div style='margin-top:1.6rem;'></div>", unsafe_allow_html=True)
         if st.button("▶ Run scraper now"):
+            user_id = st.session_state.user["id"]
             with st.spinner("Crawling https://www.pendo.io …"):
                 try:
                     summary = run_update(company_id=company_id, max_pages=max_pages)
+                    pendo_track(
+                        "scraper_run_completed",
+                        visitor_id=user_id,
+                        account_id=company_id,
+                        properties={
+                            "pages_added": summary["added"],
+                            "pages_updated": summary["updated"],
+                            "pages_removed": summary["removed"],
+                            "pages_unchanged": summary["unchanged"],
+                            "errors": summary["errors"],
+                            "max_pages": max_pages,
+                            "company_id": company_id,
+                        },
+                    )
                     st.success(
                         f"Done — added: {summary['added']} · "
                         f"updated: {summary['updated']} · "
@@ -526,6 +599,16 @@ def _tab_scraper(company_id: int) -> None:
                         f"errors: {summary['errors']}"
                     )
                 except Exception as exc:
+                    pendo_track(
+                        "scraper_run_failed",
+                        visitor_id=user_id,
+                        account_id=company_id,
+                        properties={
+                            "error_message": str(exc)[:200],
+                            "max_pages": max_pages,
+                            "company_id": company_id,
+                        },
+                    )
                     st.error(f"Scraper error: {exc}")
 
     st.markdown('<hr class="scraper-hr">', unsafe_allow_html=True)

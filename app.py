@@ -20,6 +20,7 @@ from utils.db_init import init_db
 from utils.auth import login, register
 from utils.responsive import inject_responsive_css
 from utils.sidebar import inject_hide_sidebar_css
+from utils.pendo_track import track as pendo_track
 
 # ── page config (must be the first Streamlit call) ────────────────────────────
 st.set_page_config(
@@ -169,6 +170,15 @@ def _auth_form() -> None:
                 else:
                     ok, user, msg = login(email, password, company_id)
                     if ok and user:
+                        pendo_track(
+                            "user_logged_in",
+                            visitor_id=user["id"],
+                            account_id=company_id,
+                            properties={
+                                "role": user.get("role", ""),
+                                "company_id": company_id,
+                            },
+                        )
                         st.session_state.user = user
                         st.switch_page("pages/chat.py")
                     else:
@@ -211,6 +221,15 @@ def _auth_form() -> None:
                     if ok:
                         _, user, _ = login(reg_email, reg_password, company_id)
                         if user:
+                            pendo_track(
+                                "user_registered",
+                                visitor_id=user["id"],
+                                account_id=company_id,
+                                properties={
+                                    "role": reg_role,
+                                    "company_id": company_id,
+                                },
+                            )
                             st.session_state.user = user
                             st.switch_page("pages/chat.py")
                         else:

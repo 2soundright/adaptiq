@@ -17,6 +17,7 @@ from typing import Optional, Tuple
 from groq import Groq
 
 from pipeline.lang_detect import SupportedLang
+from utils.pendo_track import track as pendo_track
 
 _GROQ_SAFETY_MODEL = os.getenv("GROQ_SAFETY_MODEL", "openai/gpt-oss-safeguard-20b")
 
@@ -87,6 +88,16 @@ def check_safety(
 
     if not is_safe:
         _log_unsafe(query, reason, company_id, user_id)
+        pendo_track(
+            "safety_block_triggered",
+            visitor_id=user_id,
+            account_id=company_id,
+            properties={
+                "block_reason": reason[:200],
+                "language": lang,
+                "company_id": company_id,
+            },
+        )
         block_msg = _BLOCK_MESSAGES.get(lang, _BLOCK_MESSAGES["en"])
         return False, block_msg
 

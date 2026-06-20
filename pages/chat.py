@@ -38,6 +38,7 @@ from pipeline.reranker import rerank
 from pipeline.generator import generate
 from pipeline.feedback import save_feedback
 from continual_learning.replay_buffer import add_entry
+from utils.pendo_track import track as pendo_track
 
 _PENDO_AGENT_ID = "dkfl5wr5cqvWxbAax-uPxZhUP6U"
 
@@ -239,6 +240,20 @@ def _render_feedback_buttons(
                 comment=comment or None,
             )
             if ok:
+                pendo_track(
+                    "feedback_submitted",
+                    visitor_id=user_id,
+                    account_id=company_id,
+                    properties={
+                        "star_rating": stars,
+                        "score": score,
+                        "has_comment": bool(comment),
+                        "conversation_id": conv_id,
+                        "company_id": company_id,
+                        "user_role": role,
+                        "chunk_ids_count": len(chunk_ids),
+                    },
+                )
                 # ── Pendo: track user reaction ───────────────────────────────
                 _track_agent("user_reaction", {
                     "agentId": _PENDO_AGENT_ID,
@@ -323,6 +338,21 @@ def _run_pipeline(
 
     chunk_ids = [c["id"] for c in top_chunks]
 
+    pendo_track(
+        "chat_query_completed",
+        visitor_id=user["id"],
+        account_id=company_id,
+        properties={
+            "language": lang,
+            "sources_count": len(top_chunks),
+            "chunks_retrieved": len(chunks),
+            "has_context_docs": bool(top_chunks),
+            "company_id": company_id,
+            "user_role": role,
+            "response_length": len(full_response),
+            "query_length": len(raw_query),
+        },
+    )
     # ── Pendo: track agent response ──────────────────────────────────────────
     _track_agent("agent_response", {
         "agentId": _PENDO_AGENT_ID,

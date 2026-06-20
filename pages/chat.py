@@ -126,6 +126,7 @@ def _save_conversation(
             conn.close()
         return conv_id
     except Exception as exc:
+        print(f"[chat] _save_conversation failed: {exc}")
         st.error(f"Could not save conversation: {exc}")
         return None
 

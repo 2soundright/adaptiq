@@ -30,6 +30,10 @@ def inject_pendo(user=None, company=None) -> None:
             y.src='https://cdn.pendo.io/agent/static/'+apiKey+'/pendo.js';
             z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);
             }})(window,document,'script','pendo');
+            pendo.initialize({{
+                visitor: {{ id: "{visitor_id}" }},
+                account: {{ id: "{account_id}" }}
+            }});
         }})("{_PENDO_INTEGRATION_KEY}");
         </script>""",
         height=0,

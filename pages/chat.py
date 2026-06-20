@@ -24,7 +24,8 @@ from utils.responsive import inject_responsive_css
 
 inject_responsive_css()
 
-from utils.db_init import get_connection, init_db
+from utils.db_init import get_connection, get_company, init_db
+from utils.pendo import inject_pendo
 from utils.db_lock import db_lock
 from pipeline.safety import check_safety
 from pipeline.lang_detect import detect_language
@@ -323,6 +324,10 @@ def render() -> None:
     user: Dict = st.session_state.user
     company_id: int = st.session_state.get("company_id", 1)
     role: str = user.get("role", "user")
+
+    company_row = get_company(company_id)
+    company = dict(company_row) if company_row else None
+    inject_pendo(user=user, company=company)
 
     if role == "admin":
         from utils.sidebar import render_admin_sidebar

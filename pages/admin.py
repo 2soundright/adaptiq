@@ -40,6 +40,7 @@ from pipeline.retriever import add_chunks, get_or_create_collection
 from continual_learning.drift_detector import drift_summary
 from continual_learning.ewc import calculate_plasticity
 from scraper.updater import run_update
+from utils.pendo import track_event
 
 
 # ── auth guard ────────────────────────────────────────────────────────────────
@@ -331,9 +332,18 @@ def _tab_documents(company_id: int, user_id: int) -> None:
 
     if st.button("📥 Ingest selected files", disabled=not uploaded):
         progress = st.progress(0)
+        successful_count = 0
+        failed_count = 0
         for i, f in enumerate(uploaded):
             file_bytes = f.read()
             if len(file_bytes) > 50 * 1024 * 1024:
+                track_event("document_ingestion_failed", visitor_id=user_id, account_id=company_id, properties={
+                    "filename": f.name,
+                    "file_type": f.name.rsplit(".", 1)[-1].lower(),
+                    "file_size": len(file_bytes),
+                    "error_message": "File exceeds 50 MB limit",
+                })
+                failed_count += 1
                 st.error(f"'{f.name}' exceeds 50 MB limit – skipped.")
                 continue
             ext = f.name.rsplit(".", 1)[-1].lower()
@@ -342,10 +352,30 @@ def _tab_documents(company_id: int, user_id: int) -> None:
                     file_bytes, f.name, ext, visibility, company_id, user_id
                 )
             if ok:
+                track_event("document_ingested", visitor_id=user_id, account_id=company_id, properties={
+                    "filename": f.name,
+                    "file_type": ext,
+                    "file_size": len(file_bytes),
+                    "visibility": visibility,
+                })
+                successful_count += 1
                 st.success(msg)
             else:
+                track_event("document_ingestion_failed", visitor_id=user_id, account_id=company_id, properties={
+                    "filename": f.name,
+                    "file_type": ext,
+                    "file_size": len(file_bytes),
+                    "error_message": msg[:200],
+                })
+                failed_count += 1
                 st.error(f"'{f.name}': {msg}")
             progress.progress((i + 1) / len(uploaded))
+        track_event("bulk_document_upload_completed", visitor_id=user_id, account_id=company_id, properties={
+            "total_files": len(uploaded),
+            "successful_count": successful_count,
+            "failed_count": failed_count,
+            "visibility": visibility,
+        })
 
     st.divider()
     st.subheader("📚 Indexed Documents")
@@ -518,6 +548,15 @@ def _tab_scraper(company_id: int) -> None:
             with st.spinner("Crawling https://www.pendo.io …"):
                 try:
                     summary = run_update(company_id=company_id, max_pages=max_pages)
+                    track_event("scraper_run_completed", visitor_id=st.session_state.user["id"], account_id=company_id, properties={
+                        "pages_added": summary["added"],
+                        "pages_updated": summary["updated"],
+                        "pages_removed": summary["removed"],
+                        "pages_unchanged": summary["unchanged"],
+                        "errors": summary["errors"],
+                        "max_pages": max_pages,
+                        "trigger_source": "manual",
+                    })
                     st.success(
                         f"Done — added: {summary['added']} · "
                         f"updated: {summary['updated']} · "
@@ -526,6 +565,11 @@ def _tab_scraper(company_id: int) -> None:
                         f"errors: {summary['errors']}"
                     )
                 except Exception as exc:
+                    track_event("scraper_run_failed", visitor_id=st.session_state.user["id"], account_id=company_id, properties={
+                        "error_message": str(exc)[:200],
+                        "max_pages": max_pages,
+                        "trigger_source": "manual",
+                    })
                     st.error(f"Scraper error: {exc}")
 
     st.markdown('<hr class="scraper-hr">', unsafe_allow_html=True)

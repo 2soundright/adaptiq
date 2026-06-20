@@ -20,6 +20,7 @@ from utils.db_init import init_db
 from utils.auth import login, register
 from utils.responsive import inject_responsive_css
 from utils.sidebar import inject_hide_sidebar_css
+from utils.pendo import track_event
 
 # ── page config (must be the first Streamlit call) ────────────────────────────
 st.set_page_config(
@@ -169,9 +170,15 @@ def _auth_form() -> None:
                 else:
                     ok, user, msg = login(email, password, company_id)
                     if ok and user:
+                        track_event("user_login_succeeded", visitor_id=user["id"], account_id=company_id, properties={
+                            "role": user.get("role", "user"),
+                        })
                         st.session_state.user = user
                         st.switch_page("pages/chat.py")
                     else:
+                        track_event("user_login_failed", visitor_id="anonymous", account_id=company_id, properties={
+                            "failure_reason": msg,
+                        })
                         st.error(msg)
 
             _t, _b = st.columns([1.4, 0.9])
@@ -211,6 +218,9 @@ def _auth_form() -> None:
                     if ok:
                         _, user, _ = login(reg_email, reg_password, company_id)
                         if user:
+                            track_event("user_registered", visitor_id=user["id"], account_id=company_id, properties={
+                                "role": reg_role,
+                            })
                             st.session_state.user = user
                             st.switch_page("pages/chat.py")
                         else:

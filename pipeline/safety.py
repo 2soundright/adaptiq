@@ -87,6 +87,11 @@ def check_safety(
 
     if not is_safe:
         _log_unsafe(query, reason, company_id, user_id)
+        from utils.pendo import track_event
+        track_event("safety_content_blocked", visitor_id=user_id or "system", account_id=company_id or "system", properties={
+            "reason": reason[:200] if reason else "",
+            "language": lang,
+        })
         block_msg = _BLOCK_MESSAGES.get(lang, _BLOCK_MESSAGES["en"])
         return False, block_msg
 

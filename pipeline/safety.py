@@ -87,17 +87,7 @@ def check_safety(
         return True, query
 
     if not is_safe:
-        _log_unsafe(query, reason, company_id, user_id)
-        pendo_track(
-            "safety_block_triggered",
-            visitor_id=user_id,
-            account_id=company_id,
-            properties={
-                "block_reason": reason[:200],
-                "language": lang,
-                "company_id": company_id,
-            },
-        )
+        _log_unsafe(query, reason, company_id, user_id, lang=lang)
         block_msg = _BLOCK_MESSAGES.get(lang, _BLOCK_MESSAGES["en"])
         return False, block_msg
 
@@ -109,6 +99,7 @@ def _log_unsafe(
     reason: str,
     company_id: Optional[int],
     user_id: Optional[int],
+    lang: str = "en",
 ) -> None:
     """Write an encrypted audit-log entry for a blocked query."""
     try:
@@ -122,3 +113,19 @@ def _log_unsafe(
         )
     except Exception as exc:
         print(f"[safety] Failed to write audit log: {exc}")
+
+    try:
+        from utils.pendo import track_event_server
+        track_event_server(
+            "safety_block_triggered",
+            visitor_id=user_id,
+            account_id=company_id,
+            properties={
+                "reason": reason[:200],
+                "language": lang,
+                "company_id": company_id,
+                "user_id": user_id,
+            },
+        )
+    except Exception as exc:
+        print(f"[safety] Failed to send Pendo track event: {exc}")

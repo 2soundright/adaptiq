@@ -1,91 +1,66 @@
 """
 utils/pendo.py
 --------------
-Pendo SDK integration for the Streamlit app.
-Injects the Pendo install snippet and lifecycle calls (initialize, identify,
-clearSession) into the parent browser window via streamlit.components.v1.html().
+Pendo Track Event helpers for both client-side (Streamlit JS injection)
+and server-side (HTTP POST) tracking.
 """
 
 import json
-
-import streamlit as st
-import streamlit.components.v1 as components
-
-_PENDO_API_KEY = '18d45cc7-9959-4253-b4e7-bca464558030'
+import time
+from typing import Optional
 
 
-def inject_pendo(user=None, company=None):
-    """
-    Inject the Pendo SDK snippet and the appropriate lifecycle call.
+def track_event(event_name: str, properties: Optional[dict] = None) -> None:
+    """Inject a pendo.track() call via JavaScript in a Streamlit page."""
+    import streamlit.components.v1 as components
 
-    Args:
-        user: User dict (id, email, role, company_id, created_at) or None for anonymous.
-        company: Company dict (id, name, website, scraping_enabled, created_at) or None.
-    """
-    clear_session_js = ''
-    if st.session_state.pop('pendo_clear_session', False):
-        clear_session_js = (
-            'if (w.pendo && w.pendo.clearSession) { w.pendo.clearSession(); }\n'
-            '        w._pendoInitialized = false;'
+    props_json = json.dumps(properties or {})
+    components.html(
+        f"""<script>
+        (function() {{
+            try {{
+                var p = (window.parent && window.parent.pendo) || window.pendo;
+                if (p && typeof p.track === 'function') {{
+                    p.track("{event_name}", {props_json});
+                }}
+            }} catch(e) {{ }}
+        }})();
+        </script>""",
+        height=0,
+        width=0,
+    )
+
+
+_PENDO_TRACK_URL = "https://data.pendo.io/data/track"
+_PENDO_INTEGRATION_KEY = "4e308391-5688-48ad-b1a2-f121c7565c18"
+
+
+def track_event_server(
+    event_name: str,
+    visitor_id: Optional[str] = None,
+    account_id: Optional[str] = None,
+    properties: Optional[dict] = None,
+) -> None:
+    """Send a Pendo Track Event via HTTP POST (server-side)."""
+    import httpx
+
+    payload = {
+        "type": "track",
+        "event": event_name,
+        "visitorId": str(visitor_id) if visitor_id else "system",
+        "accountId": str(account_id) if account_id else "system",
+        "timestamp": int(time.time() * 1000),
+        "properties": properties or {},
+    }
+    try:
+        httpx.post(
+            _PENDO_TRACK_URL,
+            json=payload,
+            headers={
+                "Content-Type": "application/json",
+                "x-pendo-integration-key": _PENDO_INTEGRATION_KEY,
+            },
+            timeout=5.0,
         )
-
-    lifecycle_js = ''
-    if user:
-        visitor_data = {
-            'id': user['id'],
-            'email': user.get('email', ''),
-            'companyId': user.get('company_id', ''),
-            'role': user.get('role', ''),
-            'createdAt': user.get('created_at', ''),
-        }
-        account_data = {
-            'id': user.get('company_id', ''),
-        }
-        if company:
-            account_data['name'] = company.get('name', '')
-            account_data['website'] = company.get('website', '')
-            account_data['scrapingEnabled'] = bool(company.get('scraping_enabled', 0))
-            account_data['createdAt'] = company.get('created_at', '')
-
-        identify_json = json.dumps({'visitor': visitor_data, 'account': account_data})
-        lifecycle_js = f'w.pendo.identify({identify_json});'
-
-    html_content = f"""
-    <script>
-    (function() {{
-        var w = window.parent || window;
-
-        // Load Pendo agent script (only once per browser session)
-        if (!w._pendoScriptLoaded) {{
-            w._pendoScriptLoaded = true;
-            (function(apiKey) {{
-                (function(p,e,n,d,o) {{
-                    var v,w2,x,y,z;
-                    o=p[d]=p[d]||{{}};o._q=o._q||[];
-                    v=['initialize','identify','updateOptions','pageLoad','track','trackAgent'];
-                    for(w2=0,x=v.length;w2<x;++w2)(function(m){{
-                        o[m]=o[m]||function(){{o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));}};
-                    }})(v[w2]);
-                    y=e.createElement(n);y.async=!0;
-                    y.src='https://cdn.pendo.io/agent/static/'+apiKey+'/pendo.js';
-                    z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);
-                }})(w,w.document,'script','pendo');
-            }})('{_PENDO_API_KEY}');
-        }}
-
-        // Handle session clear (on logout)
-        {clear_session_js}
-
-        // Initialize with anonymous visitor (once, or after clearSession reset)
-        if (!w._pendoInitialized) {{
-            w._pendoInitialized = true;
-            w.pendo.initialize({{ visitor: {{ id: '' }} }});
-        }}
-
-        // Identify signed-in user
-        {lifecycle_js}
-    }})();
-    </script>
-    """
-
-    components.html(html_content, height=0)
+    except Exception as exc:
+        print(f"[pendo] Failed to send track event '{event_name}': {exc}")

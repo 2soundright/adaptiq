@@ -22,6 +22,12 @@ def get_connection() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
+    for col, defn in [("star_rating", "INTEGER"), ("comment", "TEXT")]:
+        try:
+            conn.execute(f"ALTER TABLE feedback ADD COLUMN {col} {defn}")
+            conn.commit()
+        except Exception:
+            pass
     return conn
 
 
